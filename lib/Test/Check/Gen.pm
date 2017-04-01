@@ -161,8 +161,9 @@ sub filter(&$) {
             return ($value, $next) if $p->($value);
             $seed = $next;
             $failures += 1;
-        }
-        die;
+          }
+        # There probably needs to be a way to get an identifier into this message
+        croak("filter failed to produce a satisfactory value; aborting");
     };
 }
 
@@ -226,18 +227,18 @@ I<w_i> ÷ I<w>.
 =cut
 sub frequency(@) {
     my (@pairs) = @_;
-    my $total = 0;
+    my $total_weight = 0;
     foreach my $pair (@pairs) {
         my ($weight, $item) = @$pair;
-        die unless $weight > 0;
-        $total += $weight;
+        die unless $weight >= 0;
+        $total_weight += $weight;
     }
     return comap {
-        my $total = $_;
+        my $weight_remaining = $_;
         foreach my $pair (@pairs) {
             my ($weight, $item) = @$pair;
-            return $item if $total < $weight;
-            $total -= $weight;
+            return $item if $weight_remaining < $weight;
+            $weight_remaining -= $weight;
         }
         return $pairs[0]->[1];
     } fraction($total);
@@ -440,7 +441,8 @@ sub stringof {
 
 =cut
 sub identifier() {
-    return stringof(wordchar(), whole(1, 8));
+    # Identifiers do not begin with digits
+    return filter { $_ =~ /^\D/ } stringof(wordchar(), whole(1, 7));
 }
 memoize('identifier');
 
@@ -502,16 +504,12 @@ sub tuple(@) {
 
 =cut
 sub record(@) {
-    my (@items) = @_;
+    my (%gens) = @_;
     return gen {
         my ($seed, $shrinks) = @_;
         my $res = {};
-        my $i = 0;
-        while ($i < scalar(@items)) {
-            my $key = $items[$i];
-            my $gen = $items[$i + 1];
-            $i += 2;
-            my ($value, $next) = $gen->($seed, $shrinks);
+        for my $key (keys %gens) {
+            my ($value, $next) = $gens{$key}->($seed, $shrinks);
             $res->{$key} = $value;
             $seed = $next;
         }
@@ -531,7 +529,7 @@ that takes care of this implicitly?
 =cut
 sub vector {
     my ($gen, $size) = @_;
-    die "invalid size: $size" unless $size >= 0;
+    die "invalid size: $size" unless defined($size) && $size >= 0;
     return gen {
         my ($seed, $shrinks) = @_;
         my $res = [];
