@@ -65,7 +65,7 @@ B<run>, B<test>, and B<check>.
 sub new {
     my ($class, $name, $predicate, @gens) = @_;
     die unless scalar(@gens);
-    my $isnamed = !ref($gens[0]);
+    my $isnamed = !ref($gens[0]); # MJD- I don't understand this test
     my $self = {
         name => $name,
         predicate => $predicate,

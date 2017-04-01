@@ -23,14 +23,20 @@ Test::Check - Property-based testing for Perl.
         $lhs == $rhs;
     } $g1, $g1, $g1;
 
-    my $g2 = oneof(0, 1, 1000); // generate one of 3 numbers
+    my $g2 = oneof(0, 1, 1000); // generate one of these 3 numbers
 
-    test "0 is unique" => prop {
+    test "0 is the only identity element" => prop {
         my (%o) = @_;
         my $isunchanged = $o{x} + $o{y} == $o{x};
         my $iszero = $o{y} == 0;
         $unchanged == $iszero;
     } x => $g2, y => $g2;
+
+=for mjd-comment
+
+There ought to be a way to associate a formatter with a property, so that
+instead of saying just "$x $y $z" when it fails it can say
+C<($x + $y) + $z  ≠   $x + ($y + $z)!!>
 
 =head1 DESCRIPTION
 
@@ -87,7 +93,7 @@ our @EXPORT = qw(test prop);
 
 Define a named test which tests a particular property.
 
-This function implements part of a DSL to make writing properties look
+This function implements a simple DSL to make writing properties look
 relatively clean. Here's an example:
 
     use Data::Compare;
@@ -114,6 +120,11 @@ B<Test::Check::Prop>:
 Both of these do the same thing: test the given property against many
 generated test cases. In this example we are generating many randomly-filled
 arrays and ensuring that reversing them twice is a no-op.
+
+=for mjd-comment
+
+The C<$t> argument seems to be missing
+from the C<run()> call above.
 
 =cut
 sub test($$) {

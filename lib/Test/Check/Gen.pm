@@ -82,6 +82,10 @@ Create a new generator from GEN using the given FN function.
 
 This is an analogue of Perl's built-in map method.
 
+=for mjd-comment
+
+Why is this called 'comap'?
+
 =cut
 sub comap(&$) {
     my ($f, $gen) = @_;
@@ -193,6 +197,10 @@ The generators will be used with equal probability (which does not mean that
 the underlying values will be chosen with equal probability across
 generators).
 
+=for mjd-comment
+
+I think this should be called C<union>.
+
 =cut
 sub generators(@) {
     my (@gens) = @_;
@@ -200,6 +208,20 @@ sub generators(@) {
 }
 
 =item B<frequency(PAIRS...)>
+
+        frequency( [ w_1, v_1 ],
+                   [ w_2, v_2 ],
+                   ...
+                   [ w_n, v_n ] );
+
+Generates one of the values I<v_1>, I<v_2>, … I<v_n>
+with probability weight I<w_1>, I<w_2>, … I<w_n>, respectively.
+This means that if one value's weight is twice another's,
+it will appear twice as often as the other.
+
+Mathematically, let I<W> be the sume of the weights.
+Then value I<v_i> is produced with probability
+I<w_i> ÷ I<w>.
 
 =cut
 sub frequency(@) {
@@ -222,6 +244,26 @@ sub frequency(@) {
 }
 
 =item B<optional(GEN)>
+
+Like C<GEN>, except that ten percent of the time it returns C<undef>.
+
+=begin mjd-comment
+
+Maybe we need a more general biased union:
+
+        biased_union( [ w_1, g_1 ], ... [ w_n, g_n ] )
+
+is like frequency(), but after selecting a [w_i, g_i] via a weighted
+random selection, it then uses g_i as a generator to generate a value.  Then
+
+     optional($g) === biased_union( [ 9, $g ],
+                                    [ 1, const(undef) } ] )
+
+which I think is quiet perspicuous.
+
+This pattern also appears in C<gengen()>.
+
+=end mjd-comment
 
 =cut
 sub optional {
@@ -248,6 +290,10 @@ memoize('bool');
 
 =item B<number()>
 
+=for mjd-comment
+
+I like this!
+
 =cut
 sub number {
     return generators(
@@ -261,20 +307,26 @@ memoize('number');
 =cut
 sub fraction {
     my ($start, $limit) = @_;
-    if (defined($limit)) {
-        my $delta = $limit - $start;
-        return gen {
-            my ($seed, $shrinks) = @_;
-            my $x = randomfloat($seed, $delta, $start);
-            $x = $x / (2 ** $shrinks) if $shrinks;
-            return ($x, nextseed($seed));
-        }
-    } else {
-        return fraction(-$start, $start);
+
+    ($start, $limit) = (-$start, $start) unless defined $limit;
+
+    my $delta = $limit - $start;
+    return gen {
+        my ($seed, $shrinks) = @_;
+        my $x = randomfloat($seed, $delta, $start);
+        $x = $x / (2 ** $shrinks) if $shrinks;
+        return ($x, nextseed($seed));
     }
 }
 
 =item B<whole()>
+
+=for mjd-comment
+
+I have two notes here:
+1. Maybe this should be slightly boased toward producing zero,
+   which is a common failure case.
+2. Why not define this in terms of range()?
 
 =cut
 sub whole {
@@ -293,6 +345,12 @@ sub range {
         my ($seed, $shrinks) = @_; # shrink is unused
         my $remainder = SEED_MODULUS % $diff;
         my $top = SEED_MODULUS - $remainder;
+
+=for mjd-comment
+
+It seems like this C<while> loop could take a very long time to complete.
+
+=cut
         while ($seed >= $top) {
             $seed = nextseed($seed);
         }
@@ -400,6 +458,14 @@ memoize('string');
 sub anyscalar() {
     return generators(
         const(undef),
+
+=for mjd-comment
+
+I wonder if instead of C<bool()> we might want
+C<oneof(undef, 0, 1, "00", "2")>?
+
+=cut
+
         bool(),
         number(),
         identifier(),
@@ -410,6 +476,11 @@ memoize('anyscalar');
 # Arary generators
 
 =item B<tuple(GENS...)>
+
+=for mjd-comment
+
+I expected this to be called I<product>.
+Not sure if this is a better name.
 
 =cut
 sub tuple(@) {
@@ -446,7 +517,14 @@ sub record(@) {
         }
         return ($res, $seed);
     };
-}
+  }
+
+=for mjd-comment
+
+I had a crazy idea at this point:
+Each function explicitly threads the seed management through the control flow.
+Is there some way to make a monadic sequencing operator for generators
+that takes care of this implicitly?
 
 =item B<vector(GEN, SIZE)>
 
@@ -555,6 +633,12 @@ sub anything {
 memoize('anything');
 
 =item B<genseed()>
+
+=for mjd-comment
+
+My note on the C<return> line says
+“is this right?”
+but I don't remember why ☹
 
 =cut
 sub genseed {
